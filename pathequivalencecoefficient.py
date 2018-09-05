@@ -21,7 +21,7 @@ import nelpy.plotting as npl
 
 #Import linfields from .mat format
 
-linmat = scipy.io.loadmat('H:\Single_Day_WTrack\JS15_direct\JS15linfields01.mat', 
+linmat = scipy.io.loadmat('H:\Single_Day_WTrack\JS17_direct\JS17linfields01.mat', 
                        struct_as_record=False, squeeze_me=True)
 
 def load_linfield(linmat):
@@ -81,11 +81,11 @@ del lfields
 del linmat  
 ###############################################################################    
 
-#ca1tet = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 20, 21, 22, 23, 24, 25]
+#ca1tet = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 20, 21, 22, 23, 24, 25] #JS15
 #pfctet = [0, 1, 2, 3, 14, 15, 16, 17, 18, 19, 27, 28, 29, 30, 31]  #JS15
-pfctet = [0, 1, 2, 3, 4, 15, 16, 17, 18, 19, 26, 28, 29, 30, 31]; #ER1
+#pfctet = [0, 1, 2, 3, 4, 15, 16, 17, 18, 19, 26, 28, 29, 30, 31]; #ER1
+pfctet = [0, 1, 2, 3, 12, 13, 14, 15, 16, 17, 18, 19, 25, 26, 27, 28, 29, 30, 31] #JS17
      
-        
 pfc_linfields = []
 for tet2 in pfctet:
     for t, field in enumerate(linfields):
@@ -100,6 +100,35 @@ for tet2 in pfctet:
 del field
 del tet2
 del pfctet
+
+#Match cell idx for cells in all epochs
+matchidx = []
+for x in pfc_linfields:
+    if x['Epoch'] == 1:
+        cell = x['Cell']
+        tet = x['Tetrode'] 
+        matchidx.append({})
+        matchidx[-1]['Cell'] = cell
+        matchidx[-1]['Tetrode'] = tet
+
+cellidx=[]        
+for match in matchidx:
+    c = match['Cell']
+    t = match['Tetrode']
+    idx = [t, c]
+    cellidx.append(idx)
+    cellidx.sort()
+    
+eparray = [1]  
+allep_cellidx = []
+for ep in eparray: 
+    for c in cellidx:
+        cellinep_count = []
+        for sp in pfc_linfields:
+            if sp['Tetrode'] == c[0] and sp['Cell'] == c[1]:
+                cellinep_count.append(sp)
+        if len(cellinep_count) == 8: #dirty way to specify number of epochs to match over
+            allep_cellidx.append(c)
 ###############################################################################
 
 #get bad positions (nan in spatial bin for any of the trajectories)        
@@ -146,9 +175,9 @@ for l in pfc_linfields_nonan:
     
     if left_length > right_length:
         new_length = left_length
-        newr_x = np.linspace(l['inright'].min(), l['inright'].max(), new_length)
-        newr_yin = interp.interp1d(np.arange(right_length), l['inright'], kind='cubic', fill_value="extrapolate")(newr_x)    
-        newr_yout = interp.interp1d(np.arange(right_length), l['outright'], kind='cubic', fill_value="extrapolate")(newr_x)  
+        newr_x = np.linspace(0, len(l['inleft']), new_length)
+        newr_yin = interp.interp1d(np.arange(right_length), l['inright'], kind='linear', fill_value='extrapolate')(newr_x)    
+        newr_yout = interp.interp1d(np.arange(right_length), l['outright'], kind='linear', fill_value='extrapolate')(newr_x)  
         l['inright'] = newr_yin
         l['outright'] = newr_yout
         
@@ -158,8 +187,8 @@ for l in pfc_linfields_nonan:
     elif left_length < right_length:
         new_length = right_length
         newl_x = np.linspace(0, len(l['inleft']), new_length)
-        newl_yin = interp.interp1d(np.arange(left_length), l['inleft'], kind='cubic', fill_value="extrapolate")(newl_x)    
-        newl_yout = interp.interp1d(np.arange(left_length), l['outleft'], kind='cubic', fill_value="extrapolate")(newl_x) 
+        newl_yin = interp.interp1d(np.arange(left_length), l['inleft'], kind='linear', fill_value='extrapolate')(newl_x)    
+        newl_yout = interp.interp1d(np.arange(left_length), l['outleft'], kind='linear', fill_value='extrapolate')(newl_x) 
         l['inleft'] = newl_yin
         l['outleft'] = newl_yout
         
@@ -192,12 +221,12 @@ del outrightnanidx
 del l; del t
 del linfields
 del pfc_linfields
-del pfc_linfields_nonan
-###############################################################################
-
-#Compute Pearson r for all ltrajectories for each cell
+del pfc_linfields_nonan     
+###############################################################################      
+        
+#Get r values for Pearson correlation
 epochlist = [1, 3, 5, 7, 9, 11, 13, 15]
-
+maxr_pec = {'ep1':[],'ep3':[],'ep5':[],'ep7':[],'ep9':[],'ep11':[],'ep13':[],'ep15':[]}
 pec = {'ep1':[],'ep3':[],'ep5':[],'ep7':[],'ep9':[],'ep11':[],'ep13':[],'ep15':[]}
 for ep in epochlist:
     for f in fixed_pfc_linfields:
@@ -225,26 +254,31 @@ for ep in epochlist:
             r, p = pearsonr(f['outleft'], f['outright'])
             rvals.append(r)
             pvals.append(p)
+            for c in allep_cellidx:
+                if f['Tetrode'] == c[0] and f['Cell'] == c[1]:
+                    maxr = np.nanmax(rvals)
+                    minp = np.nanmin(pvals)
             
-            maxr = max(rvals)
-            maxp = max(pvals)
+                    f['rvalues'] = rvals
+                    f['pvalues'] = pvals
+                    f['maxp'] = minp
+                    f['maxr'] = maxr
             
-            f['rvalues'] = rvals
-            f['pvalues'] = pvals
-            f['maxp'] = maxp
-            f['maxr'] = maxr
-            rmean = np.mean(rvals)
-            if rmean > 0: #some positive degree of path equiv
-                pec['ep' + str(ep)].append(rmean)
-            else:
-                continue
+                    maxr_pec['ep' + str(ep)].append(maxr)
+
+                    rmean = np.mean(rvals)
+                    if rmean > 0: #some positive degree of path equiv
+                        pec['ep' + str(ep)].append(rmean)
+                    else:
+                        continue
+            
         else:
             continue
-        
+     
+#Need to incorporate shuffling
+def shuf_fields(linfields, shuf_type):
+    """shuffles linearlized place fields to use as control"""
     
-
-
-
 
 
 
