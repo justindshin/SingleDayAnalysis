@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Aug 29 15:02:04 2018
+Created on Thu Sep  6 18:05:30 2018
 
 @author: jdshin
 """
@@ -81,29 +81,33 @@ del lfields
 del linmat  
 ###############################################################################    
 
-#ca1tet = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 20, 21, 22, 23, 24, 25] #JS15
-pfctet = [0, 1, 2, 3, 14, 15, 16, 17, 18, 19, 27, 28, 29, 30, 31]  #JS15
+ca1tet = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 20, 21, 22, 23, 24, 25] #JS15
+#pfctet = [0, 1, 2, 3, 14, 15, 16, 17, 18, 19, 27, 28, 29, 30, 31]  #JS15
 #pfctet = [0, 1, 2, 3, 4, 15, 16, 17, 18, 19, 26, 28, 29, 30, 31]; #ER1
 #pfctet = [0, 1, 2, 3, 12, 13, 14, 15, 16, 17, 18, 19, 25, 26, 27, 28, 29, 30, 31] #JS17
      
-pfc_linfields = []
-for tet2 in pfctet:
-    for t, field in enumerate(linfields):
-        if field['Tetrode'] == tet2:
-            field['Area'] = 'PFC'
-            pfc_linfields.append({})
-            pfc_linfields[-1] = field
-            linfields[t]['Area'] = 'PFC'
-        else:
-            continue
-        
+epochlist = [1, 3, 5, 7, 9, 11, 13, 15]
+
+ca1_linfields = []
+for ep in epochlist:
+    for tet in ca1tet:
+        for t, field in enumerate(linfields):
+            if field['Epoch'] == ep:
+                if field['Tetrode'] == tet:
+                    field['Area'] = 'CA1'
+                    ca1_linfields.append({})
+                    ca1_linfields[-1] = field
+                    linfields[t]['Area'] = 'CA1'
+                else:
+                    continue
+    
 del field
-del tet2
-del pfctet
+del tet
+del ca1tet
 
 #Match cell idx for cells in all epochs
 matchidx = []
-for x in pfc_linfields:
+for x in ca1_linfields:
     if x['Epoch'] == 1:
         cell = x['Cell']
         tet = x['Tetrode'] 
@@ -124,7 +128,7 @@ allep_cellidx = []
 for ep in eparray: 
     for c in cellidx:
         cellinep_count = []
-        for sp in pfc_linfields:
+        for sp in ca1_linfields:
             if sp['Tetrode'] == c[0] and sp['Cell'] == c[1]:
                 cellinep_count.append(sp)
         if len(cellinep_count) == 8: #dirty way to specify number of epochs to match over
@@ -132,8 +136,8 @@ for ep in eparray:
 ###############################################################################
 
 #get bad positions (nan in spatial bin for any of the trajectories)        
-pfc_linfields_nonan = []
-for p in pfc_linfields:
+ca1_linfields_nonan = []
+for p in ca1_linfields:
     isnan = []
     pp = p
     inleft = p['inleft'][:,4]
@@ -158,8 +162,8 @@ for p in pfc_linfields:
     pp['outleft'] = np.delete(outleft, isnanallidx)
     pp['outright'] = np.delete(outright, isnanallidx) 
     
-    pfc_linfields_nonan.append({})
-    pfc_linfields_nonan[-1] = pp
+    ca1_linfields_nonan.append({})
+    ca1_linfields_nonan[-1] = pp
     del isnan
     del isnanallidx
     del pp
@@ -167,9 +171,9 @@ for p in pfc_linfields:
 ###############################################################################    
     
 #Interpolation for trajectories of differing lengths
-fixed_pfc_linfields = []
+fixed_ca1_linfields = []
 
-for l in pfc_linfields_nonan:
+for l in ca1_linfields_nonan:
     left_length = len(l['inleft'])
     right_length = len(l['inright']) 
     
@@ -181,8 +185,8 @@ for l in pfc_linfields_nonan:
         l['inright'] = newr_yin
         l['outright'] = newr_yout
         
-        fixed_pfc_linfields.append({})
-        fixed_pfc_linfields[-1] = l
+        fixed_ca1_linfields.append({})
+        fixed_ca1_linfields[-1] = l
 
     elif left_length < right_length:
         new_length = right_length
@@ -192,12 +196,12 @@ for l in pfc_linfields_nonan:
         l['inleft'] = newl_yin
         l['outleft'] = newl_yout
         
-        fixed_pfc_linfields.append({})
-        fixed_pfc_linfields[-1] = l
+        fixed_ca1_linfields.append({})
+        fixed_ca1_linfields[-1] = l
 
     elif left_length == right_length:
-        fixed_pfc_linfields.append({})
-        fixed_pfc_linfields[-1] = l
+        fixed_ca1_linfields.append({})
+        fixed_ca1_linfields[-1] = l
 
         continue
         
@@ -219,18 +223,17 @@ del inrightnanidx
 del outleftnanidx
 del outrightnanidx
 del l; del t
-del linfields
-del pfc_linfields
-del pfc_linfields_nonan     
+
+     
 ###############################################################################      
         
 #Get r values for Pearson correlation
 epochlist = [1, 3, 5, 7, 9, 11, 13, 15]
-maxr_pec = {'ep1':[],'ep3':[],'ep5':[],'ep7':[],'ep9':[],'ep11':[],'ep13':[],'ep15':[]}
-pec = {'ep1':[],'ep3':[],'ep5':[],'ep7':[],'ep9':[],'ep11':[],'ep13':[],'ep15':[]}
-pec_pfc_shuf = {'ep1':[],'ep3':[],'ep5':[],'ep7':[],'ep9':[],'ep11':[],'ep13':[],'ep15':[]}
+maxr_pec_hpc = {'ep1':[],'ep3':[],'ep5':[],'ep7':[],'ep9':[],'ep11':[],'ep13':[],'ep15':[]}
+pec_hpc = {'ep1':[],'ep3':[],'ep5':[],'ep7':[],'ep9':[],'ep11':[],'ep13':[],'ep15':[]}
+pec_hpc_shuf = {'ep1':[],'ep3':[],'ep5':[],'ep7':[],'ep9':[],'ep11':[],'ep13':[],'ep15':[]}
 for ep in epochlist:
-    for f in fixed_pfc_linfields:
+    for f in fixed_ca1_linfields:
         rvals = []
         pvals = []
         rvals_shuf = []
@@ -239,7 +242,7 @@ for ep in epochlist:
         c = f['Cell']
         e = f['Epoch']
         if f['Epoch'] == ep:
-            r, p = pearsonr(f['inleft'], f['inright']) #get rid of center arm
+            r, p = pearsonr(f['inleft'], f['inright'])
             rvals.append(r)
             pvals.append(p)
             r, p = pearsonr(f['inleft'], f['outleft'])
@@ -254,7 +257,7 @@ for ep in epochlist:
             r, p = pearsonr(f['inright'], f['outright'])
             rvals.append(r)
             pvals.append(p)
-            r, p = pearsonr(f['outleft'], f['outright']) #get rid of center arm
+            r, p = pearsonr(f['outleft'], f['outright'])
             rvals.append(r)
             pvals.append(p)
             for c in allep_cellidx:
@@ -265,15 +268,16 @@ for ep in epochlist:
                     f['rvalues'] = rvals
                     f['pvalues'] = pvals
                     f['maxp'] = minp
-                    f['maxr'] = maxr
+                    f['maxr'] = max
             
-                    maxr_pec['ep' + str(ep)].append(maxr)
+                    maxr_pec_hpc['ep' + str(ep)].append(maxr)
 
-                    rmean = np.mean(rvals)
-                    #if rmean > 0: #some positive degree of path equiv
-                    pec['ep' + str(ep)].append(rmean)
+                    rmean = np.nanmean(rvals)
+#                    if rmean > 0: #some positive degree of path equiv
+                    pec_hpc['ep' + str(ep)].append(rmean)
 #                    else:
 #                        continue
+                    #Do shuffling from Frank et al. 2000
                     trajtoshuf = [f['inleft'], f['inright'], f['outleft'], f['outright']]
                     trajkeys = ['inleft', 'inright', 'outleft', 'outright']
                     for shuf in trajtoshuf:
@@ -310,16 +314,22 @@ for ep in epochlist:
                                 continue
                                 
                     maxr_shuf = np.nanmax(rvals_shuf)                                                                                    
-                    pec_pfc_shuf['ep' + str(ep)].append(maxr - maxr_shuf)
+                    pec_hpc_shuf['ep' + str(ep)].append(maxr - maxr_shuf)
+                                                                                
 
-    
-
-
-
-
-
-
-
-
-
-
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        

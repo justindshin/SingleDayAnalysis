@@ -28,7 +28,7 @@ import nelpy as nel
 import nelpy.io
 import nelpy.plotting as npl
 
-linmat = scipy.io.loadmat('H:\Single_Day_WTrack\ER1_direct\ER1linfields01.mat', 
+linmat = scipy.io.loadmat('H:\Single_Day_WTrack\JS15_direct\JS15linfields01.mat', 
                        struct_as_record=False, squeeze_me=True)
 
 def load_linfield(linmat):
@@ -378,8 +378,16 @@ for ep in epochs:
                                     
     pfc_shiftvalues['ep' + str(ep)] = epshiftvals 
         
-
-
+shift_mean = []
+shift_mean.append(np.mean(shiftvalues['ep3']))
+shift_mean.append(np.mean(shiftvalues['ep5']))
+shift_mean.append(np.mean(shiftvalues['ep7']))
+shift_mean.append(np.mean(shiftvalues['ep9']))
+shift_mean.append(np.mean(shiftvalues['ep11']))
+shift_mean.append(np.mean(shiftvalues['ep13']))
+shift_mean.append(np.mean(shiftvalues['ep15']))
+x_ax = ['ep1toep3','ep3toep5','ep5toep7','ep7toep9','ep9toep11','ep11toep13','ep13toep15']
+plt.plot(x_ax,shift_mean)
 
 
 
