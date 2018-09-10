@@ -239,6 +239,7 @@ for ep in epochlist:
         c = f['Cell']
         e = f['Epoch']
         if f['Epoch'] == ep:
+            
             r, p = pearsonr(f['inleft'], f['inright']) #get rid of center arm
             rvals.append(r)
             pvals.append(p)
@@ -254,6 +255,7 @@ for ep in epochlist:
             r, p = pearsonr(f['inright'], f['outright'])
             rvals.append(r)
             pvals.append(p)
+            
             r, p = pearsonr(f['outleft'], f['outright']) #get rid of center arm
             rvals.append(r)
             pvals.append(p)
